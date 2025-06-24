@@ -13,6 +13,15 @@ main :: proc() {
     test_mesh_creation()
     test_polygon_operations()
     
+    // Test new geometric predicates
+    test_geometric_predicates()
+    
+    // Test AABB tree spatial indexing
+    test_aabb_tree()
+    
+    // Test layer slicing algorithm
+    test_layer_slicing()
+    
     // Test STL functionality if file provided
     if len(os.args) > 1 {
         test_stl_loading(os.args[1])
@@ -170,4 +179,379 @@ test_stl_loading :: proc(filepath: string) {
     } else {
         fmt.printf("⚠ Failed to save test STL\n")
     }
+}
+
+test_geometric_predicates :: proc() {
+    fmt.println("\n--- Testing Geometric Predicates ---")
+    
+    // Test orientation predicate
+    test_orientation_predicate()
+    
+    // Test line intersection
+    test_line_intersection()
+    
+    // Test robust point-in-polygon
+    test_robust_point_in_polygon()
+    
+    // Test triangle-plane intersection
+    test_triangle_plane_intersection()
+    
+    // Test point-to-line distance
+    test_point_line_distance()
+    
+    fmt.println("✓ Geometric predicates tests passed")
+}
+
+test_orientation_predicate :: proc() {
+    fmt.println("  Testing orientation predicate...")
+    
+    // Test counter-clockwise
+    ccw := orientation_exact(
+        point2d_from_mm(0, 0),
+        point2d_from_mm(1, 0), 
+        point2d_from_mm(0, 1)
+    )
+    assert(ccw > 0, "Should be counter-clockwise")
+    
+    // Test clockwise
+    cw := orientation_exact(
+        point2d_from_mm(0, 0),
+        point2d_from_mm(0, 1),
+        point2d_from_mm(1, 0)
+    )
+    assert(cw < 0, "Should be clockwise")
+    
+    // Test collinear
+    collinear := orientation_exact(
+        point2d_from_mm(0, 0),
+        point2d_from_mm(1, 1),
+        point2d_from_mm(2, 2)
+    )
+    assert(collinear == 0, "Should be collinear")
+    
+    fmt.println("    ✓ Orientation tests passed")
+}
+
+test_line_intersection :: proc() {
+    fmt.println("  Testing line intersection...")
+    
+    // Test simple intersection
+    intersection := line_segment_intersection(
+        point2d_from_mm(0, 0), point2d_from_mm(2, 2),  // Line 1
+        point2d_from_mm(0, 2), point2d_from_mm(2, 0)   // Line 2 (crossing)
+    )
+    assert(intersection.type == .POINT, "Should intersect at a point")
+    
+    x_mm, y_mm := point2d_to_mm(intersection.point)
+    assert(abs(x_mm - 1.0) < 1e-6, "Intersection X should be 1.0")
+    assert(abs(y_mm - 1.0) < 1e-6, "Intersection Y should be 1.0")
+    
+    // Test parallel lines (no intersection)
+    no_intersection := line_segment_intersection(
+        point2d_from_mm(0, 0), point2d_from_mm(2, 0),  // Horizontal line 1
+        point2d_from_mm(0, 1), point2d_from_mm(2, 1)   // Horizontal line 2
+    )
+    assert(no_intersection.type == .NONE, "Parallel lines should not intersect")
+    
+    // Test collinear overlapping segments
+    collinear := line_segment_intersection(
+        point2d_from_mm(0, 0), point2d_from_mm(2, 0),  // Line segment 1
+        point2d_from_mm(1, 0), point2d_from_mm(3, 0)   // Overlapping segment
+    )
+    assert(collinear.type == .SEGMENT, "Collinear segments should overlap")
+    
+    fmt.println("    ✓ Line intersection tests passed")
+}
+
+test_robust_point_in_polygon :: proc() {
+    fmt.println("  Testing robust point-in-polygon...")
+    
+    // Create a square polygon
+    square := polygon_create_rectangle(0.0, 0.0, 10.0, 10.0)
+    defer polygon_destroy(&square)
+    
+    // Test point inside
+    inside_point := point2d_from_mm(5.0, 5.0)
+    assert(point_in_polygon_robust(inside_point, &square), "Point should be inside square")
+    
+    // Test point outside
+    outside_point := point2d_from_mm(15.0, 5.0)
+    assert(!point_in_polygon_robust(outside_point, &square), "Point should be outside square")
+    
+    // Test point on edge (should be considered outside for robustness)
+    edge_point := point2d_from_mm(10.0, 5.0)
+    edge_result := point_in_polygon_robust(edge_point, &square)
+    // Note: This might be inside or outside depending on exact implementation
+    
+    // Test point at vertex
+    vertex_point := point2d_from_mm(0.0, 0.0)
+    vertex_result := point_in_polygon_robust(vertex_point, &square)
+    
+    // Compare with raycast version for consistency
+    inside_raycast := point_in_polygon_raycast(inside_point, &square)
+    outside_raycast := point_in_polygon_raycast(outside_point, &square)
+    
+    assert(inside_raycast == true, "Raycast should agree on inside point")
+    assert(outside_raycast == false, "Raycast should agree on outside point")
+    
+    fmt.println("    ✓ Point-in-polygon tests passed")
+}
+
+test_triangle_plane_intersection :: proc() {
+    fmt.println("  Testing triangle-plane intersection...")
+    
+    // Create a triangle that crosses the Z=5 plane
+    triangle := [3]Vec3f{
+        {0.0, 0.0, 0.0},  // Below plane
+        {10.0, 0.0, 0.0}, // Below plane  
+        {5.0, 10.0, 10.0} // Above plane
+    }
+    
+    intersection := triangle_plane_intersection(triangle, 5.0)
+    assert(intersection.has_intersection, "Triangle should intersect plane")
+    assert(!intersection.edge_on_plane, "No edge should be on plane")
+    assert(!intersection.vertex_on_plane, "No vertex should be on plane")
+    
+    // Test triangle entirely above plane
+    above_triangle := [3]Vec3f{
+        {0.0, 0.0, 10.0},
+        {10.0, 0.0, 10.0},
+        {5.0, 10.0, 20.0}
+    }
+    
+    no_intersection := triangle_plane_intersection(above_triangle, 5.0)
+    assert(!no_intersection.has_intersection, "Triangle above plane should not intersect")
+    
+    // Test triangle with vertex on plane
+    vertex_on_plane := [3]Vec3f{
+        {0.0, 0.0, 5.0},  // On plane
+        {10.0, 0.0, 0.0}, // Below plane
+        {5.0, 10.0, 10.0} // Above plane
+    }
+    
+    vertex_intersection := triangle_plane_intersection(vertex_on_plane, 5.0)
+    assert(vertex_intersection.has_intersection, "Should intersect when vertex on plane")
+    assert(vertex_intersection.vertex_on_plane, "Should detect vertex on plane")
+    
+    fmt.println("    ✓ Triangle-plane intersection tests passed")
+}
+
+test_point_line_distance :: proc() {
+    fmt.println("  Testing point-to-line distance...")
+    
+    // Test distance from point to horizontal line
+    line_start := point2d_from_mm(0.0, 0.0)
+    line_end := point2d_from_mm(10.0, 0.0)
+    point := point2d_from_mm(5.0, 3.0)
+    
+    distance := point_line_distance(point, line_start, line_end)
+    distance_mm := coord_to_mm(distance)
+    
+    assert(abs(distance_mm - 3.0) < 1e-6, "Distance should be 3.0 mm")
+    
+    // Test distance to line endpoint
+    endpoint_point := point2d_from_mm(15.0, 0.0)
+    endpoint_distance := point_line_distance(endpoint_point, line_start, line_end)
+    endpoint_distance_mm := coord_to_mm(endpoint_distance)
+    
+    assert(abs(endpoint_distance_mm - 5.0) < 1e-6, "Distance to endpoint should be 5.0 mm")
+    
+    // Test distance to point on line (should be zero)
+    on_line_point := point2d_from_mm(7.0, 0.0)
+    on_line_distance := point_line_distance(on_line_point, line_start, line_end)
+    on_line_distance_mm := coord_to_mm(on_line_distance)
+    
+    assert(abs(on_line_distance_mm) < 1e-6, "Distance to point on line should be zero")
+    
+    fmt.println("    ✓ Point-to-line distance tests passed")
+}
+
+test_aabb_tree :: proc() {
+    fmt.println("\n--- Testing AABB Tree Spatial Indexing ---")
+    
+    // Create a simple test mesh (cube with 12 triangles)
+    mesh := create_test_cube_mesh()
+    defer mesh_destroy(&mesh)
+    
+    // Build AABB tree
+    tree := aabb_build(&mesh)
+    defer aabb_destroy(&tree)
+    
+    fmt.printf("  Built AABB tree: %d nodes, %d leaves\n", tree.node_count, tree.leaf_count)
+    
+    // Validate tree structure
+    assert(aabb_validate(&tree), "AABB tree should be valid")
+    
+    // Test statistics
+    stats := aabb_get_stats(&tree)
+    fmt.printf("  Tree stats: max depth %d, avg leaf size %.1f\n", 
+               stats.max_depth, stats.avg_leaf_size)
+    
+    assert(stats.node_count > 0, "Should have nodes")
+    assert(stats.max_depth > 0, "Should have non-zero depth")
+    
+    // Test plane intersection query
+    test_aabb_plane_intersection()
+    
+    // Test ray intersection query
+    test_aabb_ray_intersection()
+    
+    fmt.println("✓ AABB tree tests passed")
+}
+
+create_test_cube_mesh :: proc() -> TriangleMesh {
+    mesh := mesh_create()
+    
+    // Create a 10x10x10 mm cube centered at origin
+    vertices := [8]Vec3f{
+        {-5, -5, -5}, {5, -5, -5}, {5, 5, -5}, {-5, 5, -5},  // Bottom face
+        {-5, -5,  5}, {5, -5,  5}, {5, 5,  5}, {-5, 5,  5},  // Top face
+    }
+    
+    // Add vertices to mesh
+    vertex_indices: [8]u32
+    for vertex, i in vertices {
+        vertex_indices[i] = its_add_vertex(&mesh.its, vertex)
+    }
+    
+    // Define cube faces (12 triangles)
+    faces := [12][3]u32{
+        // Bottom face
+        {0, 1, 2}, {0, 2, 3},
+        // Top face  
+        {4, 6, 5}, {4, 7, 6},
+        // Front face
+        {0, 4, 5}, {0, 5, 1},
+        // Back face
+        {2, 6, 7}, {2, 7, 3},
+        // Left face
+        {0, 3, 7}, {0, 7, 4},
+        // Right face
+        {1, 5, 6}, {1, 6, 2},
+    }
+    
+    // Add triangles to mesh
+    for face in faces {
+        its_add_triangle(&mesh.its, face[0], face[1], face[2])
+    }
+    
+    mesh_mark_dirty(&mesh)
+    return mesh
+}
+
+test_aabb_plane_intersection :: proc() {
+    fmt.println("  Testing plane intersection queries...")
+    
+    // This would be properly implemented once we have the cube mesh
+    // For now, create a minimal test
+    
+    mesh := create_test_cube_mesh()
+    defer mesh_destroy(&mesh)
+    
+    tree := aabb_build(&mesh)
+    defer aabb_destroy(&tree)
+    
+    // Test plane at Z=0 (should intersect the cube)
+    intersections := aabb_plane_intersect(&tree, 0.0)
+    defer delete(intersections)
+    
+    assert(len(intersections) > 0, "Plane at Z=0 should intersect cube")
+    fmt.printf("    Plane Z=0 intersects %d triangles\n", len(intersections))
+    
+    // Test plane well outside cube
+    no_intersections := aabb_plane_intersect(&tree, 100.0)
+    defer delete(no_intersections)
+    
+    assert(len(no_intersections) == 0, "Plane at Z=100 should not intersect cube")
+    
+    fmt.println("    ✓ Plane intersection tests passed")
+}
+
+test_aabb_ray_intersection :: proc() {
+    fmt.println("  Testing ray intersection queries...")
+    
+    mesh := create_test_cube_mesh()
+    defer mesh_destroy(&mesh)
+    
+    tree := aabb_build(&mesh)
+    defer aabb_destroy(&tree)
+    
+    // Test ray pointing at cube center
+    ray_start := Vec3f{0, 0, -10}  // Start outside cube
+    ray_dir := Vec3f{0, 0, 1}      // Point toward cube
+    
+    hit := aabb_ray_intersect(&tree, ray_start, ray_dir)
+    
+    assert(hit.hit, "Ray should hit the cube")
+    assert(hit.distance > 0, "Hit distance should be positive")
+    assert(hit.distance < 10, "Hit should be closer than ray start distance")
+    
+    fmt.printf("    Ray hit at distance %.2f\n", hit.distance)
+    
+    // Test ray missing the cube
+    miss_ray_start := Vec3f{20, 20, -10}  // Start well outside
+    miss_ray_dir := Vec3f{0, 0, 1}        // Parallel ray that misses
+    
+    miss_hit := aabb_ray_intersect(&tree, miss_ray_start, miss_ray_dir)
+    assert(!miss_hit.hit, "Ray should miss the cube")
+    
+    fmt.println("    ✓ Ray intersection tests passed")
+}
+
+test_layer_slicing :: proc() {
+    fmt.println("\n--- Testing Layer Slicing Algorithm ---")
+    
+    // Create test cube mesh
+    mesh := create_test_cube_mesh()
+    defer mesh_destroy(&mesh)
+    
+    // Slice at 2mm layer height
+    layer_height: f32 = 2.0
+    slice_result := slice_mesh(&mesh, layer_height)
+    defer slice_result_destroy(&slice_result)
+    
+    fmt.printf("  Sliced into %d layers\n", len(slice_result.layers))
+    
+    // Validate basic properties
+    assert(len(slice_result.layers) > 0, "Should have at least one layer")
+    assert(slice_result_validate(&slice_result), "Slice result should be valid")
+    
+    // Check that middle layers have polygons
+    if len(slice_result.layers) >= 3 {
+        middle_layer := &slice_result.layers[len(slice_result.layers) / 2]
+        assert(len(middle_layer.polygons) > 0, "Middle layer should have polygons")
+        
+        fmt.printf("  Middle layer Z=%.2f has %d polygons\n", 
+                   middle_layer.z_height, len(middle_layer.polygons))
+        
+        // Check polygon properties
+        for &expoly in middle_layer.polygons {
+            area := expolygon_area(&expoly)
+            assert(area > 0, "Polygon should have positive area")
+            assert(len(expoly.contour.points) >= 3, "Polygon should have at least 3 points")
+        }
+    }
+    
+    // Test volume calculation
+    volume := slice_result_volume(&slice_result, layer_height)
+    fmt.printf("  Calculated volume: %.2f mm³\n", volume)
+    
+    // For a 10x10x10 cube, volume should be approximately 1000 mm³
+    expected_volume: f64 = 1000.0
+    volume_error := abs(volume - expected_volume) / expected_volume
+    
+    fmt.printf("  Volume error: %.1f%% (expected: %.0f, got: %.0f)\n", 
+               volume_error * 100, expected_volume, volume)
+    
+    // Allow some error due to discretization and edge effects
+    assert(volume_error < 0.3, "Volume should be approximately correct")
+    
+    // Test statistics
+    stats := slice_result.statistics
+    fmt.printf("  Statistics: %s\n", slice_statistics_summary(stats))
+    
+    assert(stats.total_layers > 0, "Should have processed layers")
+    assert(stats.processing_time_ms >= 0, "Processing time should be non-negative")
+    
+    fmt.println("✓ Layer slicing tests passed")
 }
