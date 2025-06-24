@@ -6,6 +6,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 OrcaSlicer is an open-source 3D printing slicer forked from Bambu Studio/PrusaSlicer. It's a C++17 codebase with a clear separation between the core slicing engine (`libslic3r`) and GUI application (`slic3r`). The project features advanced calibration tools, multi-material support, network printing capabilities, and extensive printer compatibility.
 
+## Odin Rewrite Project Scope
+
+**IMPORTANT**: The long-term goal is to rewrite OrcaSlicer in Odin. However, the initial scope is deliberately limited to focus on core functionality:
+
+### ✅ In Scope for Odin Rewrite
+- **Core Slicing Engine**: Geometry processing, layer generation, path planning
+- **Basic Print Settings**: Layer heights, walls, infill patterns, speeds
+- **File I/O**: STL, 3MF import/export, G-code generation
+- **Support Generation**: Basic support algorithms (tree and traditional)
+- **Simple GUI**: Basic model loading, slicing, and preview
+- **Configuration System**: Core print settings and presets
+
+### ❌ Out of Scope (Initially)
+- **Calibration System**: Temperature towers, flow calibration, pressure advance
+- **Network Printing**: Cloud services, printer communication, remote monitoring  
+- **Multi-Material**: AMS integration, wipe towers, tool changes
+- **Advanced Features**: Variable layer heights, ironing, fuzzy skin
+- **Complex UI**: Advanced gizmos, wizards, complex dialogs
+
+When working on this project, prioritize the in-scope features and avoid implementing the excluded functionality until the core system is stable and complete.
+
+**Project Progress Tracking**: See `TODO.md` in the project root for detailed development phases, task lists, and current progress on the Odin rewrite project.
+
+**Odin Development**: All new Odin code is located in the `odin/` directory in the project root. This is where the rewrite implementation takes place, separate from the existing C++ codebase.
+
+### Odin Rewrite Philosophy
+**CRITICAL**: This is NOT a literal C++ translation. The goal is to create equivalent functionality using:
+- **Data-Oriented Programming**: Following Mike Acton/Casey Muratori principles
+- **Maximum Performance**: Cache-friendly data layouts, minimal indirection
+- **Idiomatic Odin**: Use Odin's strengths (procedures, structs, enums, slices)
+- **Batch Processing**: Transform data in bulk, avoid per-object operations
+- **Memory Efficiency**: Contiguous arrays, structure-of-arrays over array-of-structures
+
+### Data-Oriented Design Principles
+- **Data is the problem**: Design around data transformations, not object models
+- **Cache locality**: Keep related data together in memory
+- **SIMD-friendly**: Use data layouts that enable vectorization
+- **Minimize branching**: Prefer data-driven dispatch over conditionals
+- **Batch operations**: Process arrays of data, not individual items
+- **No unnecessary abstraction**: If it doesn't solve a real data problem, remove it
+
+Study the C++ implementation to understand the algorithms and functionality, then implement equivalent behavior using data-oriented Odin patterns.
+
 ## Build System & Commands
 
 ### Build Scripts
