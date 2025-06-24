@@ -7,6 +7,13 @@ import "core:math"
 main :: proc() {
     fmt.println("=== OrcaSlicer Odin - Phase 1 Foundation ===")
     
+    // Check for benchmark flag
+    if len(os.args) > 1 && os.args[1] == "--benchmark" {
+        run_performance_benchmarks()
+        test_tree_quality()
+        return
+    }
+    
     // Test all core components
     test_coordinates()
     test_geometry()
