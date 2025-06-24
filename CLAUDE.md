@@ -22,6 +22,7 @@ OrcaSlicer is an open-source 3D printing slicer forked from Bambu Studio/PrusaSl
 - **Calibration System**: Temperature towers, flow calibration, pressure advance
 - **Network Printing**: Cloud services, printer communication, remote monitoring  
 - **Multi-Material**: AMS integration, wipe towers, tool changes
+- **Boolean Mesh Operations**: Union, intersection, difference of 3D meshes
 - **Advanced Features**: Variable layer heights, ironing, fuzzy skin
 - **Complex UI**: Advanced gizmos, wizards, complex dialogs
 
@@ -48,6 +49,79 @@ When working on this project, prioritize the in-scope features and avoid impleme
 - **No unnecessary abstraction**: If it doesn't solve a real data problem, remove it
 
 Study the C++ implementation to understand the algorithms and functionality, then implement equivalent behavior using data-oriented Odin patterns.
+
+## Geometry and Slicing Concepts
+
+When working on the Odin rewrite, understand these core 3D printing and computational geometry concepts:
+
+### Essential Concepts for Phase 1
+
+**Fixed-Point Coordinates:**
+- OrcaSlicer uses `coord_t` (int64) with scaling factors for exact geometric predicates
+- Prevents floating-point precision errors in boolean operations and polygon clipping
+- Learn more: "Computational Geometry" by de Berg et al., CGAL exact arithmetic docs
+
+**Indexed Triangle Sets:**
+- Vertices stored once, triangles reference by index (reduces memory, enables topology queries)
+- Industry standard for 3D mesh representation in graphics and CAD
+- Learn more: "Polygon Mesh Processing" by Botsch et al.
+
+**Layer Slicing:**
+- Convert 3D mesh to 2D polygons by intersecting with horizontal planes
+- Core algorithm that enables layer-by-layer 3D printing
+- Learn more: "Slicing Procedures for Layered Manufacturing" papers
+
+**Polygon with Holes (ExPolygon):**
+- Outer contour + inner hole contours for complex 2D shapes
+- Essential for representing sliced layers with cavities and islands
+- Learn more: CGAL Polygon_2 documentation, Clipper library docs
+
+**Spatial Indexing (AABB Trees):**
+- Hierarchical bounding volumes for O(log n) spatial queries instead of O(n)
+- Critical for ray-mesh intersection, collision detection
+- Learn more: "Real-Time Collision Detection" by Ericson
+
+**STL File Format:**
+- Binary (compact, fast) vs ASCII (human-readable, debugging)
+- Industry standard triangle mesh format for 3D printing
+- Learn more: 3D Systems STL specification
+
+**Geometric Predicates:**
+- Exact point-in-polygon, line intersection tests for robustness
+- Handle degenerate cases consistently without floating-point errors
+- Learn more: Jonathan Shewchuk's robust geometric predicates papers
+
+### Advanced Concepts (Phase 2+)
+
+**Voronoi Diagrams:**
+- Used in Arachne algorithm for variable-width wall generation
+- Tree support generation and medial axis computation
+- Learn more: "Computational Geometry" Ch. 7, Boost.Polygon Voronoi docs
+
+**Boolean Mesh Operations:**
+- Union/intersection/difference of 3D meshes for multi-part models
+- Complex algorithms requiring robust handling of degenerate cases
+- **NOTE: Out of scope for initial rewrite - defer to later phases**
+- Learn more: CGAL Boolean operations documentation
+
+**Support Generation:**
+- Automatic detection of overhangs requiring support material
+- Tree supports (minimal material) vs traditional supports (reliable)
+- Learn more: 3D printing support structure research papers
+
+### Mathematical Foundations
+
+**Linear Algebra (Eigen):**
+- Vectors, matrices, transformations for 3D graphics
+- SIMD-optimized operations for performance
+- Learn more: "Mathematics for Computer Graphics" by Vince
+
+**Transformation Matrices:**
+- Scale, rotate, translate objects in 3D space
+- Essential for object positioning and coordinate system conversion
+- Learn more: "Real-Time Rendering" transformation chapters
+
+Focus on understanding the purpose and mathematical foundations of these concepts rather than implementation details when planning the Odin rewrite.
 
 ## Build System & Commands
 
