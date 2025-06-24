@@ -262,3 +262,15 @@ Extensive technical documentation is available in the `llm/` directory, includin
 - Feature catalogs and implementation notes
 
 This documentation provides deep technical insight into OrcaSlicer's implementation and can guide development decisions and architectural understanding.
+
+## Learning Resources
+
+**Comprehensive learning materials are available in `RESOURCES.md`** - This file contains curated resources for understanding the mathematical and computational foundations behind OrcaSlicer, including:
+
+- **Computational geometry fundamentals** (robustness, precision, exact arithmetic)
+- **Fixed-point coordinate systems** (why OrcaSlicer uses them, alternatives)
+- **Advanced robustness techniques** (adaptive precision, interval arithmetic, symbolic computation)
+- **3D printing specific algorithms** (slicing, mesh processing, file formats)
+- **Performance optimization** (data-oriented design, cache-friendly programming)
+
+When encountering unfamiliar concepts in the codebase, consult `RESOURCES.md` for relevant books, papers, and documentation that explain the theoretical foundations and provide learning paths for different skill levels.
