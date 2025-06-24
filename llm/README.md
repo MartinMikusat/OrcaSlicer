@@ -14,10 +14,10 @@ This documentation provides a comprehensive technical analysis of OrcaSlicer's f
 - [Print Features](./features/print_features.md) - Infill, supports, bridges, etc.
 - [Calibration Tools](./features/calibration.md) - Temperature towers, flow calibration
 - [Multi-Material Support](./features/multi_material.md) - MMU, AMS, tool changing
-- [Network Printing](./features/network_printing.md) - OctoPrint, Klipper, Moonraker
+- [Network Printing](./features/network-printing.md) - OctoPrint, Klipper, Moonraker
 
 ### UI Components
-- [Main Interface](./ui/main_interface.md) - Window layout and organization
+- [Main Interface](./ui/main-interface.md) - Window layout and organization
 - [3D Scene](./ui/3d_scene.md) - OpenGL rendering and interaction
 - [Gizmos](./ui/gizmos.md) - Object manipulation tools
 - [Configuration Tabs](./ui/configuration.md) - Settings interface
@@ -61,5 +61,5 @@ Each document follows this structure:
 
 Begin with:
 1. [Core Architecture Overview](./architecture.md) - System-wide design
-2. [Feature Catalog](./feature_catalog.md) - Complete feature list
-3. [Build & Dependencies](./build_system.md) - Build process analysis
+2. [Feature Catalog](./feature-catalog.md) - Complete feature list
+3. [Build & Dependencies](./build-system.md) - Build process analysis
