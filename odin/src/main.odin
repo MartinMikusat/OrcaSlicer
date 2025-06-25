@@ -22,6 +22,18 @@ main :: proc() {
         return
     }
     
+    // Check for path-optimization-only flag
+    if len(os.args) > 1 && os.args[1] == "--path-optimization-only" {
+        fmt.println("=== Testing Path Optimization Only ===")
+        test_path_optimization()
+        test_seam_optimization()
+        test_travel_optimization()
+        test_speed_optimization()
+        test_complete_path_optimization_workflow()
+        fmt.println("=== Path Optimization Tests Completed ===")
+        return
+    }
+    
     // Test all core components
     test_coordinates()
     test_geometry()
@@ -60,6 +72,13 @@ main :: proc() {
     test_support_generation()
     test_support_optimization()
     test_support_generation_with_real_geometry()
+    
+    // Test path optimization system
+    test_path_optimization()
+    test_seam_optimization()
+    test_travel_optimization()
+    test_speed_optimization()
+    test_complete_path_optimization_workflow()
     
     // Test STL functionality if file provided, or use test cube
     test_stl_path := "test_cube.stl"
