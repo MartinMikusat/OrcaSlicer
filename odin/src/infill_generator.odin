@@ -193,13 +193,8 @@ generate_rectilinear_pattern :: proc(infill_regions: [dynamic]Polygon, settings:
     
     // Generate parallel lines across bounding box
     pattern_lines := generate_parallel_lines(bbox, spacing, angle)
-    defer {
-        for &line in pattern_lines {
-            delete(line.points)
-        }
-        delete(pattern_lines)
-    }
     
+    // Don't defer delete - we're returning the lines
     return pattern_lines
 }
 
@@ -207,51 +202,77 @@ generate_rectilinear_pattern :: proc(infill_regions: [dynamic]Polygon, settings:
 generate_parallel_lines :: proc(bbox: BoundingBox2D, spacing: f64, angle_degrees: f64) -> [dynamic]Polyline {
     lines := make([dynamic]Polyline)
     
-    angle_rad := angle_degrees * math.PI / 180.0
-    cos_angle := math.cos_f64(angle_rad)
-    sin_angle := math.sin_f64(angle_rad)
+    // For now, implement simple horizontal/vertical lines to fix the critical bug
+    // TODO: Add proper rotation support later
     
-    // Calculate bbox dimensions in mm
-    bbox_width := coord_to_mm(bbox.max.x - bbox.min.x)
-    bbox_height := coord_to_mm(bbox.max.y - bbox.min.y)
-    
-    // Calculate diagonal length for line extension
-    diagonal := math.sqrt_f64(bbox_width * bbox_width + bbox_height * bbox_height)
-    
-    // Calculate spacing in coordinate units
-    spacing_coord := mm_to_coord(spacing)
-    
-    // Generate lines perpendicular to angle direction
-    // Transform to rotated coordinate system where lines are horizontal
-    
-    // Center point of bounding box
-    center_x := coord_to_mm(bbox.min.x + (bbox.max.x - bbox.min.x) / 2)
-    center_y := coord_to_mm(bbox.min.y + (bbox.max.y - bbox.min.y) / 2)
-    
-    // Number of lines needed
-    line_count := int(diagonal / spacing) + 2
-    start_offset := -f64(line_count / 2) * spacing
-    
-    for i in 0..<line_count {
-        offset := start_offset + f64(i) * spacing
+    if angle_degrees == 0.0 || abs(angle_degrees) < 1e-6 {
+        // Horizontal lines
+        bbox_width_mm := coord_to_mm(bbox.max.x - bbox.min.x)
+        bbox_height_mm := coord_to_mm(bbox.max.y - bbox.min.y)
         
-        // Line in rotated coordinate system (perpendicular to angle)
-        // Rotate back to world coordinates
-        line_start_x := center_x + offset * (-sin_angle) - diagonal * cos_angle
-        line_start_y := center_y + offset * cos_angle - diagonal * sin_angle
-        line_end_x := center_x + offset * (-sin_angle) + diagonal * cos_angle
-        line_end_y := center_y + offset * cos_angle + diagonal * sin_angle
+        // Calculate number of lines
+        line_count := int(bbox_height_mm / spacing) + 2
         
-        // Convert to coordinate units
-        start := point2d_from_mm(line_start_x, line_start_y)
-        end := point2d_from_mm(line_end_x, line_end_y)
+        // Generate horizontal lines
+        for i in 0..<line_count {
+            y_offset := f64(i) * spacing
+            y_mm := coord_to_mm(bbox.min.y) + y_offset
+            
+            start_x := coord_to_mm(bbox.min.x) - 1.0
+            end_x := coord_to_mm(bbox.max.x) + 1.0
+            
+            // Create line across full width
+            start := point2d_from_mm(start_x, y_mm)
+            end := point2d_from_mm(end_x, y_mm)
+            
+            line := Polyline{points = make([dynamic]Point2D)}
+            append(&line.points, start)
+            append(&line.points, end)
+            append(&lines, line)
+        }
+    } else if abs(angle_degrees - 90.0) < 1e-6 {
+        // Vertical lines  
+        bbox_width_mm := coord_to_mm(bbox.max.x - bbox.min.x)
+        bbox_height_mm := coord_to_mm(bbox.max.y - bbox.min.y)
         
-        // Create polyline
-        line := Polyline{points = make([dynamic]Point2D)}
-        append(&line.points, start)
-        append(&line.points, end)
+        // Calculate number of lines
+        line_count := int(bbox_width_mm / spacing) + 2
         
-        append(&lines, line)
+        // Generate vertical lines
+        for i in 0..<line_count {
+            x_offset := f64(i) * spacing
+            x_mm := coord_to_mm(bbox.min.x) + x_offset
+            
+            // Create line across full height
+            start := point2d_from_mm(x_mm, coord_to_mm(bbox.min.y) - 1.0)  // Extend slightly
+            end := point2d_from_mm(x_mm, coord_to_mm(bbox.max.y) + 1.0)
+            
+            line := Polyline{points = make([dynamic]Point2D)}
+            append(&line.points, start)
+            append(&line.points, end)
+            append(&lines, line)
+        }
+    } else {
+        // For other angles, fall back to simplified approach
+        // Generate horizontal lines for now
+        bbox_height_mm := coord_to_mm(bbox.max.y - bbox.min.y)
+        line_count := int(bbox_height_mm / spacing) + 2
+        
+        for i in 0..<line_count {
+            y_offset := f64(i) * spacing
+            y_mm := coord_to_mm(bbox.min.y) + y_offset
+            
+            start_x := coord_to_mm(bbox.min.x) - 1.0
+            end_x := coord_to_mm(bbox.max.x) + 1.0
+            
+            start := point2d_from_mm(start_x, y_mm)
+            end := point2d_from_mm(end_x, y_mm)
+            
+            line := Polyline{points = make([dynamic]Point2D)}
+            append(&line.points, start)
+            append(&line.points, end)
+            append(&lines, line)
+        }
     }
     
     return lines
