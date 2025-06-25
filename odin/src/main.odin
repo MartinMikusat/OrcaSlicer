@@ -45,6 +45,9 @@ main :: proc() {
     // Test enhanced boolean operations
     test_boolean_operations_enhanced()
     
+    // Test print path generation pipeline
+    test_print_path_generation()
+    
     // Test STL functionality if file provided, or use test cube
     test_stl_path := "test_cube.stl"
     if len(os.args) > 1 {
@@ -1096,4 +1099,171 @@ test_boolean_operations_enhanced :: proc() {
     }
     
     fmt.println("✓ Enhanced boolean operations tests passed")
+}
+
+test_print_path_generation :: proc() {
+    fmt.println("\n--- Testing Print Path Generation Pipeline ---")
+    
+    // Create a simple test layer with a square ExPolygon
+    fmt.println("  Creating test geometry...")
+    
+    // Create square contour (10x10mm)
+    square := polygon_create()
+    defer polygon_destroy(&square)
+    
+    polygon_add_point(&square, point2d_from_mm(5, 5))
+    polygon_add_point(&square, point2d_from_mm(15, 5))
+    polygon_add_point(&square, point2d_from_mm(15, 15))
+    polygon_add_point(&square, point2d_from_mm(5, 15))
+    
+    // Ensure CCW orientation
+    polygon_make_ccw(&square)
+    
+    // Create ExPolygon with a hole
+    expoly := expolygon_create()
+    defer expolygon_destroy(&expoly)
+    
+    // Copy contour
+    for point in square.points {
+        polygon_add_point(&expoly.contour, point)
+    }
+    
+    // Add a small hole (2x2mm in center)
+    hole := polygon_create()
+    polygon_add_point(&hole, point2d_from_mm(9, 9))
+    polygon_add_point(&hole, point2d_from_mm(11, 9))
+    polygon_add_point(&hole, point2d_from_mm(11, 11))
+    polygon_add_point(&hole, point2d_from_mm(9, 11))
+    polygon_make_cw(&hole) // Holes are clockwise
+    
+    expolygon_add_hole(&expoly, hole)
+    
+    fmt.printf("    Created test geometry: %.2f mm² area\n", expolygon_area(&expoly))
+    
+    // Test perimeter generation
+    fmt.println("  Testing perimeter generation...")
+    
+    settings := print_settings_default()
+    layer_polygons := []ExPolygon{expoly}
+    layer_index: u32 = 5
+    z_height: f32 = 1.0
+    
+    perimeter_paths := generate_layer_perimeters(layer_polygons, settings, layer_index, z_height)
+    defer {
+        for &path in perimeter_paths {
+            print_path_destroy(&path)
+        }
+        delete(perimeter_paths)
+    }
+    
+    fmt.printf("    Generated %d perimeter paths\n", len(perimeter_paths))
+    
+    // Count outer vs inner perimeters
+    outer_count := 0
+    inner_count := 0
+    total_perimeter_length: f64 = 0.0
+    
+    for path in perimeter_paths {
+        #partial switch path.type {
+        case .PERIMETER_OUTER:
+            outer_count += 1
+        case .PERIMETER_INNER:
+            inner_count += 1
+        }
+        total_perimeter_length += path.total_length
+    }
+    
+    fmt.printf("    Perimeter stats: %d outer, %d inner, %.2fmm total\n",
+               outer_count, inner_count, total_perimeter_length)
+    
+    assert(len(perimeter_paths) >= 2, "Should have at least 2 perimeter paths (contour + hole)")
+    assert(total_perimeter_length > 0, "Should have non-zero perimeter length")
+    
+    // Test infill generation
+    fmt.println("  Testing infill generation...")
+    
+    infill_paths := generate_layer_infill(layer_polygons, settings, layer_index, z_height)
+    defer {
+        for &path in infill_paths {
+            print_path_destroy(&path)
+        }
+        delete(infill_paths)
+    }
+    
+    fmt.printf("    Generated %d infill paths\n", len(infill_paths))
+    
+    total_infill_length: f64 = 0.0
+    for path in infill_paths {
+        total_infill_length += path.total_length
+    }
+    
+    fmt.printf("    Infill stats: %.2fmm total length\n", total_infill_length)
+    
+    // Test complete layer generation
+    fmt.println("  Testing complete layer assembly...")
+    
+    layer := print_layer_create(layer_index, z_height)
+    defer print_layer_destroy(&layer)
+    
+    // Add perimeter paths
+    for path in perimeter_paths {
+        path_copy := PrintPath{
+            moves = make([dynamic]PrintMove),
+            type = path.type,
+            layer_index = path.layer_index,
+            is_closed = path.is_closed,
+            total_length = path.total_length,
+        }
+        for move in path.moves {
+            append(&path_copy.moves, move)
+        }
+        print_layer_add_path(&layer, path_copy)
+    }
+    
+    // Add infill paths
+    for path in infill_paths {
+        path_copy := PrintPath{
+            moves = make([dynamic]PrintMove),
+            type = path.type,
+            layer_index = path.layer_index,
+            is_closed = path.is_closed,
+            total_length = path.total_length,
+        }
+        for move in path.moves {
+            append(&path_copy.moves, move)
+        }
+        print_layer_add_path(&layer, path_copy)
+    }
+    
+    fmt.printf("    Layer stats: %d total paths, %.1fs estimated time\n",
+               len(layer.paths), layer.layer_time)
+    
+    // Test G-code generation
+    fmt.println("  Testing G-code generation...")
+    
+    job := print_job_create()
+    defer print_job_destroy(&job)
+    
+    print_job_add_layer(&job, layer)
+    
+    gcode_settings := gcode_settings_default()
+    gcode := generate_gcode(&job, gcode_settings)
+    defer delete(gcode)
+    
+    // Analyze generated G-code
+    analysis := analyze_gcode(gcode)
+    fmt.printf("    G-code stats: %d lines, %d commands, %d movements\n",
+               analysis.total_lines, analysis.command_lines, analysis.movement_commands)
+    
+    assert(analysis.total_lines > 50, "Should generate substantial G-code")
+    assert(analysis.movement_commands > 0, "Should have movement commands")
+    assert(analysis.extrusion_commands > 0, "Should have extrusion commands")
+    
+    // Save test G-code to file
+    success := save_gcode_to_file(gcode, "test_output.gcode")
+    if success {
+        fmt.println("    G-code saved to test_output.gcode")
+    }
+    
+    fmt.println("✓ Print path generation pipeline tests passed")
 }
