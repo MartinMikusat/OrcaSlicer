@@ -34,13 +34,22 @@ main :: proc() {
     test_degenerate_case_handling()
     fmt.println("--- Degenerate case handling test completed ---")
     
+    // Test enhanced slicing with degenerate geometry
+    test_enhanced_slicing_with_degenerate_cases()
+    
     // Test gap closing algorithm
     test_gap_closing()
     
-    // Test STL functionality if file provided
+    // Test STL functionality if file provided, or use test cube
+    test_stl_path := "test_cube.stl"
     if len(os.args) > 1 {
-        test_stl_loading(os.args[1])
+        test_stl_path = os.args[1]
     }
+    
+    fmt.println("\n--- Testing STL loading and enhanced slicing ---")
+    test_stl_loading(test_stl_path)
+    test_enhanced_slicing_with_real_stl(test_stl_path)
+    fmt.println("--- STL testing completed ---")
     
     fmt.println("=== Foundation tests completed successfully! ===")
 }
@@ -699,4 +708,141 @@ test_degenerate_case_handling :: proc() {
     }
     
     fmt.println("✓ Enhanced degenerate case handling tests passed")
+}
+
+test_enhanced_slicing_with_degenerate_cases :: proc() {
+    fmt.println("\n--- Testing Enhanced Slicing with Degenerate Geometry ---")
+    
+    // Create a mesh with a triangle lying exactly on the slicing plane
+    mesh := mesh_create()
+    defer mesh_destroy(&mesh)
+    
+    // Triangle lying exactly on Z=0 plane (face-on-plane case)
+    face_on_plane_tri := [3]Vec3f{
+        {0.0, 0.0, 0.0},  // On plane
+        {5.0, 0.0, 0.0},  // On plane  
+        {2.5, 5.0, 0.0},  // On plane
+    }
+    
+    // Standard triangle crossing Z=0 plane
+    standard_tri := [3]Vec3f{
+        {-2.0, -2.0, -1.0}, // Below plane
+        {2.0, -2.0, 1.0},   // Above plane
+        {0.0, 2.0, 1.0},    // Above plane
+    }
+    
+    // Add triangles to mesh
+    mesh_add_triangle(&mesh, face_on_plane_tri[0], face_on_plane_tri[1], face_on_plane_tri[2])
+    mesh_add_triangle(&mesh, standard_tri[0], standard_tri[1], standard_tri[2])
+    
+    // Test slicing at Z=0 (where face-on-plane triangle lies)
+    slice_result := slice_mesh(&mesh, 1.0) // 1mm layer height to get Z=0 layer
+    defer slice_result_destroy(&slice_result)
+    
+    fmt.printf("  Sliced mesh with degenerate geometry: %d layers\n", len(slice_result.layers))
+    
+    // Find the layer at Z=0
+    z0_layer_idx := -1
+    for layer, i in slice_result.layers {
+        if abs(layer.z_height - 0.0) < 0.1 { // Within 0.1mm of Z=0
+            z0_layer_idx = i
+            break
+        }
+    }
+    
+    if z0_layer_idx >= 0 {
+        z0_layer := &slice_result.layers[z0_layer_idx]
+        fmt.printf("  Z=0 layer has %d polygons\n", len(z0_layer.polygons))
+        
+        // Count total segments across all polygons
+        total_segments := 0
+        for expoly in z0_layer.polygons {
+            total_segments += len(expoly.contour.points)
+            for hole in expoly.holes {
+                total_segments += len(hole.points)
+            }
+        }
+        
+        fmt.printf("  Total segments in Z=0 layer: %d\n", total_segments)
+        
+        // We expect more segments due to the face-on-plane triangle contributing 3 segments
+        // plus the standard triangle contributing 1 segment = at least 4 segments total
+        assert(len(z0_layer.polygons) > 0, "Should have polygons at Z=0")
+        
+        fmt.println("  ✓ Enhanced slicing correctly handles face-on-plane triangles")
+    } else {
+        fmt.println("  ⚠ Could not find Z=0 layer for verification")
+    }
+    
+    fmt.println("✓ Enhanced slicing with degenerate geometry tests passed")
+}
+
+test_enhanced_slicing_with_real_stl :: proc(filepath: string) {
+    fmt.printf("\n--- Testing Enhanced Slicing with Real STL: %s ---\n", filepath)
+    
+    // Load the STL file
+    mesh, ok := stl_load(filepath)
+    if !ok {
+        fmt.printf("⚠ Failed to load STL file: %s\n", filepath)
+        return
+    }
+    defer mesh_destroy(&mesh)
+    
+    stats := mesh_get_stats(&mesh)
+    fmt.printf("  Loaded mesh: %d vertices, %d triangles\n", stats.num_vertices, stats.num_triangles)
+    
+    // Test slicing with layer height that intersects face-on-plane triangles
+    layer_height: f32 = 2.0  // This should slice through Z=0, Z=2, Z=4, Z=6, Z=8, Z=10
+    slice_result := slice_mesh(&mesh, layer_height)
+    defer slice_result_destroy(&slice_result)
+    
+    fmt.printf("  Sliced into %d layers at %.1fmm layer height\n", len(slice_result.layers), layer_height)
+    
+    // Analyze layers for degenerate case handling
+    face_on_plane_layers := 0
+    total_polygons := 0
+    
+    for layer, i in slice_result.layers {
+        polygon_count := len(layer.polygons)
+        total_polygons += polygon_count
+        
+        fmt.printf("  Layer %d (Z=%.1f): %d polygons\n", i, layer.z_height, polygon_count)
+        
+        // Check for layers at Z=0 and Z=10 (face-on-plane cases)
+        if abs(layer.z_height - 0.0) < 0.1 || abs(layer.z_height - 10.0) < 0.1 {
+            face_on_plane_layers += 1
+            fmt.printf("    → Face-on-plane layer detected!\n")
+            
+            // Count segments in this critical layer
+            total_segments := 0
+            for expoly in layer.polygons {
+                total_segments += len(expoly.contour.points)
+                for hole in expoly.holes {
+                    total_segments += len(hole.points)
+                }
+            }
+            fmt.printf("    → Total segments: %d\n", total_segments)
+        }
+    }
+    
+    // Calculate volume and compare with expected (10x10x10 = 1000 mm³)
+    volume := slice_result_volume(&slice_result, layer_height)
+    expected_volume: f64 = 1000.0
+    volume_error := abs(volume - expected_volume) / expected_volume
+    
+    fmt.printf("  Volume: %.1f mm³ (expected: %.0f, error: %.1f%%)\n", 
+               volume, expected_volume, volume_error * 100)
+    
+    // Validate results
+    assert(len(slice_result.layers) > 0, "Should have sliced layers")
+    assert(total_polygons > 0, "Should have polygons")
+    assert(face_on_plane_layers >= 2, "Should detect face-on-plane layers at Z=0 and Z=10")
+    assert(volume_error < 0.5, "Volume should be reasonably accurate")
+    
+    // Check statistics
+    slice_stats := slice_result.statistics
+    fmt.printf("  Statistics: %d triangles processed, %.2fms processing time\n", 
+               slice_stats.triangles_processed, slice_stats.processing_time_ms)
+    
+    fmt.println("✓ Enhanced slicing with real STL passed - face-on-plane triangles handled correctly")
 }

@@ -135,15 +135,20 @@ slice_at_height :: proc(mesh: ^TriangleMesh, tree: ^AABBTree, z_height: f32) -> 
         return layer
     }
     
-    // Calculate intersection line segments
+    // Calculate intersection line segments using enhanced multi-segment approach
     segments := make([dynamic]LineSegment)
     defer delete(segments)
     
     for triangle_idx in intersecting_triangles {
-        segment, has_intersection := triangle_plane_slice(mesh, triangle_idx, z_height)
+        triangle_segments, has_intersection := triangle_plane_slice(mesh, triangle_idx, z_height)
         if has_intersection {
-            append(&segments, segment)
+            // Add all segments from this triangle (handles degenerate cases with multiple segments)
+            for segment in triangle_segments {
+                append(&segments, segment)
+            }
         }
+        // Clean up triangle segments
+        delete(triangle_segments)
     }
     
     if len(segments) == 0 {
@@ -178,31 +183,29 @@ slice_at_height :: proc(mesh: ^TriangleMesh, tree: ^AABBTree, z_height: f32) -> 
     return layer
 }
 
-// Calculate intersection of triangle with horizontal plane
-triangle_plane_slice :: proc(mesh: ^TriangleMesh, triangle_idx: u32, z_plane: f32) -> (LineSegment, bool) {
+// Calculate intersection of triangle with horizontal plane using enhanced multi-segment approach
+triangle_plane_slice :: proc(mesh: ^TriangleMesh, triangle_idx: u32, z_plane: f32) -> ([dynamic]LineSegment, bool) {
     triangle := mesh.its.indices[triangle_idx]
     v0 := mesh.its.vertices[triangle.vertices[0]]
     v1 := mesh.its.vertices[triangle.vertices[1]]
     v2 := mesh.its.vertices[triangle.vertices[2]]
     
-    // Use the robust triangle-plane intersection from geometry_predicates
+    // Use the enhanced triangle-plane intersection with comprehensive degenerate case handling
     intersection := triangle_plane_intersection([3]Vec3f{v0, v1, v2}, z_plane)
     
-    if !intersection.has_intersection {
-        return {}, false
+    // Return all segments found - this handles all cases properly:
+    // - Standard intersection: 1 segment
+    // - Vertex on plane: 1 segment  
+    // - Edge on plane: 1 segment
+    // - Face on plane: 3 segments (triangle outline)
+    // - No intersection: 0 segments
+    
+    segments := make([dynamic]LineSegment)
+    for segment in intersection.segments {
+        append(&segments, segment)
     }
     
-    // Handle degenerate cases
-    if intersection.edge_on_plane || intersection.vertex_on_plane {
-        // For now, treat these as no intersection to avoid complexity
-        // In a production slicer, these cases need special handling
-        return {}, false
-    }
-    
-    return LineSegment{
-        start = intersection.segment_start,
-        end   = intersection.segment_end,
-    }, true
+    return segments, len(segments) > 0
 }
 
 // =============================================================================
