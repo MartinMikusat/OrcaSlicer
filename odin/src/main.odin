@@ -29,6 +29,11 @@ main :: proc() {
     // Test layer slicing algorithm
     test_layer_slicing()
     
+    // Test enhanced degenerate case handling
+    fmt.println("\n--- About to test degenerate case handling ---")
+    test_degenerate_case_handling()
+    fmt.println("--- Degenerate case handling test completed ---")
+    
     // Test gap closing algorithm
     test_gap_closing()
     
@@ -614,4 +619,84 @@ test_gap_closing :: proc() {
     }
     
     fmt.println("✓ Gap closing tests passed")
+}
+
+test_degenerate_case_handling :: proc() {
+    fmt.println("\n--- Testing Enhanced Degenerate Case Handling ---")
+    
+    // Test Case 1: Standard intersection (baseline)
+    {
+        tri := [3]Vec3f{
+            {0.0, 0.0, -1.0}, // Below plane
+            {1.0, 0.0, 1.0},  // Above plane
+            {0.5, 1.0, 1.0},  // Above plane
+        }
+        z_plane: f32 = 0.0
+        
+        result := triangle_plane_intersection(tri, z_plane)
+        fmt.printf("  Standard case: type=%v, segments=%d\n", result.intersection_type, len(result.segments))
+        delete(result.segments)
+        
+        assert(result.intersection_type == .STANDARD, "Should be standard intersection")
+        assert(len(result.segments) == 1, "Should have 1 segment")
+    }
+    
+    // Test Case 2: Vertex on plane
+    {
+        tri := [3]Vec3f{
+            {0.0, 0.0, 0.0}, // On plane
+            {1.0, 0.0, 1.0}, // Above plane
+            {0.5, 1.0, -1.0}, // Below plane
+        }
+        z_plane: f32 = 0.0
+        
+        result := triangle_plane_intersection(tri, z_plane)
+        fmt.printf("  Vertex on plane: type=%v, segments=%d\n", result.intersection_type, len(result.segments))
+        delete(result.segments)
+        
+        assert(result.intersection_type == .VERTEX_ON_PLANE, "Should be vertex on plane")
+    }
+    
+    // Test Case 3: Face on plane (entire triangle on plane)
+    {
+        tri := [3]Vec3f{
+            {0.0, 0.0, 0.0}, // On plane
+            {1.0, 0.0, 0.0}, // On plane
+            {0.5, 1.0, 0.0}, // On plane
+        }
+        z_plane: f32 = 0.0
+        
+        result := triangle_plane_intersection(tri, z_plane)
+        fmt.printf("  Face on plane: type=%v, segments=%d\n", result.intersection_type, len(result.segments))
+        delete(result.segments)
+        
+        assert(result.intersection_type == .FACE_ON_PLANE, "Should be face on plane")
+        assert(len(result.segments) == 3, "Should have 3 segments (triangle outline)")
+    }
+    
+    // Test Case 4: Triangle orientation classification
+    {
+        // Upward-facing triangle
+        up_tri := [3]Vec3f{
+            {0.0, 0.0, 0.0},
+            {1.0, 0.0, 0.0},
+            {0.5, 1.0, 1.0}, // Z increases
+        }
+        up_orientation := classify_triangle_orientation(up_tri)
+        assert(up_orientation == .UP, "Should be upward-facing")
+        
+        // Degenerate triangle
+        deg_tri := [3]Vec3f{
+            {0.0, 0.0, 0.0}, // Collinear
+            {1.0, 0.0, 0.0}, // Collinear
+            {2.0, 0.0, 0.0}, // Collinear
+        }
+        deg_orientation := classify_triangle_orientation(deg_tri)
+        assert(deg_orientation == .DEGENERATE, "Should be degenerate")
+        
+        fmt.printf("  Triangle orientations: UP=%v, DEGENERATE=%v\n", 
+                   up_orientation, deg_orientation)
+    }
+    
+    fmt.println("✓ Enhanced degenerate case handling tests passed")
 }
