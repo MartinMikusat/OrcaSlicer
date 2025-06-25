@@ -111,6 +111,24 @@ main :: proc() {
         return
     }
     
+    // Check for optimization test flag
+    if len(os.args) > 1 && os.args[1] == "--optimize" {
+        fmt.println("=== Optimization Test ===")
+        fmt.println("Optimization tests temporarily disabled - implementation in progress")
+        fmt.println("=== Optimization Test Completed ===")
+        return
+    }
+    
+    // Check for arena performance test flag
+    if len(os.args) > 1 && os.args[1] == "--arena" {
+        fmt.println("=== Arena Performance Test ===")
+        test_arena_simple()
+        test_soa_simple()
+        test_memory_patterns_simple()
+        fmt.println("=== Arena Performance Test Completed ===")
+        return
+    }
+    
     // Test all core components
     test_coordinates()
     test_geometry()
