@@ -14,6 +14,14 @@ main :: proc() {
         return
     }
     
+    // Check for support-only flag
+    if len(os.args) > 1 && os.args[1] == "--support-only" {
+        fmt.println("=== Testing Support Generation Only ===")
+        test_support_generation_with_actual_overhangs()
+        fmt.println("=== Support Generation Tests Completed ===")
+        return
+    }
+    
     // Test all core components
     test_coordinates()
     test_geometry()
@@ -47,6 +55,11 @@ main :: proc() {
     
     // Test print path generation pipeline
     test_print_path_generation()
+    
+    // Test support generation system
+    test_support_generation()
+    test_support_optimization()
+    test_support_generation_with_real_geometry()
     
     // Test STL functionality if file provided, or use test cube
     test_stl_path := "test_cube.stl"
