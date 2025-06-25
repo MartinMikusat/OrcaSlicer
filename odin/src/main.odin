@@ -94,6 +94,22 @@ main :: proc() {
         return
     }
     
+    // Check for performance benchmark flag
+    if len(os.args) > 1 && os.args[1] == "--perf" {
+        fmt.println("=== Performance Benchmark ===")
+        test_performance_benchmark()
+        fmt.println("=== Performance Benchmark Completed ===")
+        return
+    }
+    
+    // Check for stress test flag
+    if len(os.args) > 1 && os.args[1] == "--stress" {
+        fmt.println("=== Stress Test ===")
+        test_stress_test()
+        fmt.println("=== Stress Test Completed ===")
+        return
+    }
+    
     // Test all core components
     test_coordinates()
     test_geometry()
