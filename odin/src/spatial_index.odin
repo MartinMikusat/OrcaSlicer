@@ -247,34 +247,45 @@ find_best_split :: proc(mesh: ^TriangleMesh, triangle_boxes: []BoundingBox3D,
 // Sort triangles by centroid along given axis
 sort_triangles_by_axis :: proc(mesh: ^TriangleMesh, triangle_boxes: []BoundingBox3D, 
                               start, count: u32, axis: int) {
-    // Extract centroids for sorting
-    centroids := make([dynamic]f32, count)
-    defer delete(centroids)
+    // Create index-centroid pairs for efficient sorting
+    SortItem :: struct {
+        centroid: f32,
+        index:    u32,
+    }
+    
+    items := make([dynamic]SortItem, count)
+    defer delete(items)
     
     for i in 0..<count {
         triangle_idx := start + i
         bbox := triangle_boxes[triangle_idx]
         
+        centroid: f32
         switch axis {
-        case 0: centroids[i] = f32(coord_to_mm(bbox.min.x + bbox.max.x) * 0.5)
-        case 1: centroids[i] = f32(coord_to_mm(bbox.min.y + bbox.max.y) * 0.5)
-        case 2: centroids[i] = f32(coord_to_mm(bbox.min.z + bbox.max.z) * 0.5)
+        case 0: centroid = f32(coord_to_mm(bbox.min.x + bbox.max.x) * 0.5)
+        case 1: centroid = f32(coord_to_mm(bbox.min.y + bbox.max.y) * 0.5)
+        case 2: centroid = f32(coord_to_mm(bbox.min.z + bbox.max.z) * 0.5)
         }
+        
+        items[i] = SortItem{centroid = centroid, index = triangle_idx}
     }
     
-    // Simple bubble sort for small arrays (could be optimized)
+    // Use Odin's built-in O(n log n) sort
+    slice.sort_by(items[:], proc(a, b: SortItem) -> bool {
+        return a.centroid < b.centroid
+    })
+    
+    // Reorder triangle_boxes based on sorted indices
+    sorted_boxes := make([dynamic]BoundingBox3D, count)
+    defer delete(sorted_boxes)
+    
     for i in 0..<count {
-        for j in 0..<count-1-i {
-            if centroids[j] > centroids[j+1] {
-                // Swap centroids
-                centroids[j], centroids[j+1] = centroids[j+1], centroids[j]
-                
-                // Swap corresponding triangle boxes
-                triangle_boxes[start + j], triangle_boxes[start + j + 1] = 
-                    triangle_boxes[start + j + 1], triangle_boxes[start + j]
-            }
-        }
+        original_idx := items[i].index
+        sorted_boxes[i] = triangle_boxes[original_idx]
     }
+    
+    // Copy back to original slice
+    copy(triangle_boxes[start:start+count], sorted_boxes[:])
 }
 
 // Evaluate cost of a split using Surface Area Heuristic

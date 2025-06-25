@@ -29,6 +29,9 @@ Layer :: struct {
     island_count: u32,                    // Number of separate islands
 }
 
+// Alias for gap closing compatibility
+SliceLayer :: Layer
+
 SliceResult :: struct {
     layers:      [dynamic]Layer,
     statistics:  SliceStatistics,
@@ -159,6 +162,17 @@ slice_at_height :: proc(mesh: ^TriangleMesh, tree: ^AABBTree, z_height: f32) -> 
         }
         append(&layer.polygons, expoly)
     }
+    
+    // TODO: Enable gap closing once fully debugged
+    // Apply gap closing to improve polygon connectivity
+    // gap_config := gap_closing_config_default()
+    // gap_stats := close_layer_gaps(&layer, gap_config)
+    
+    // Track gap closing statistics (could be added to layer stats later)
+    // if gap_stats.gaps_closed > 0 {
+    //     // Optional: log gap closing results for debugging
+    //     // fmt.printf("Layer Z=%.2f: closed %d gaps\n", z_height, gap_stats.gaps_closed)
+    // }
     
     layer.island_count = u32(len(layer.polygons))
     return layer

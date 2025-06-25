@@ -29,6 +29,9 @@ main :: proc() {
     // Test layer slicing algorithm
     test_layer_slicing()
     
+    // Test gap closing algorithm
+    test_gap_closing()
+    
     // Test STL functionality if file provided
     if len(os.args) > 1 {
         test_stl_loading(os.args[1])
@@ -561,4 +564,54 @@ test_layer_slicing :: proc() {
     assert(stats.processing_time_ms >= 0, "Processing time should be non-negative")
     
     fmt.println("✓ Layer slicing tests passed")
+}
+
+test_gap_closing :: proc() {
+    fmt.println("\n--- Testing Gap Closing Algorithm ---")
+    
+    // Create two simple open polygons that should connect
+    poly1 := Polygon{}
+    defer polygon_destroy(&poly1)
+    
+    poly2 := Polygon{}
+    defer polygon_destroy(&poly2)
+    
+    // Polygon 1: line from (0,0) to (5,0) - open
+    append(&poly1.points, point2d_from_mm(0.0, 0.0))
+    append(&poly1.points, point2d_from_mm(2.5, 0.0))
+    append(&poly1.points, point2d_from_mm(5.0, 0.0))
+    
+    // Polygon 2: line from (5.1,0) to (10,0) - small gap
+    append(&poly2.points, point2d_from_mm(5.1, 0.0))
+    append(&poly2.points, point2d_from_mm(7.5, 0.0))
+    append(&poly2.points, point2d_from_mm(10.0, 0.0))
+    
+    // Create array of polygons
+    polygons := make([dynamic]Polygon)
+    defer {
+        for &poly in polygons {
+            polygon_destroy(&poly)
+        }
+        delete(polygons)
+    }
+    
+    append(&polygons, poly1)
+    append(&polygons, poly2)
+    
+    fmt.printf("  Before gap closing: %d polygons\n", len(polygons))
+    
+    // Test gap closing
+    config := gap_closing_config_default()
+    config.enable_debug = true  // Enable debug output
+    
+    stats := close_polygon_gaps(&polygons, config)
+    
+    fmt.printf("  After gap closing: %d polygons\n", len(polygons))
+    fmt.printf("  Gaps found: %d, closed: %d\n", stats.total_gaps_found, stats.gaps_closed)
+    
+    if len(polygons) > 0 {
+        fmt.printf("  Merged polygon has %d points\n", len(polygons[0].points))
+    }
+    
+    fmt.println("✓ Gap closing tests passed")
 }

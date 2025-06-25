@@ -48,8 +48,12 @@ point_distance_squared :: proc(a, b: Point2D) -> coord_t {
 }
 
 // =============================================================================
-// 3D Vector Types (Floating-Point for External Interface)
+// Vector Types (Floating-Point for External Interface)
 // =============================================================================
+
+Vec2f :: struct {
+    x, y: f32,
+}
 
 Vec3f :: struct {
     x, y, z: f32,
@@ -96,6 +100,37 @@ vec3_normalize :: proc(v: Vec3f) -> Vec3f {
     length := vec3_length(v)
     if length == 0 do return {}
     return vec3_scale(v, 1.0 / length)
+}
+
+// 2D vector operations
+vec2_add :: proc(a, b: Vec2f) -> Vec2f {
+    return {a.x + b.x, a.y + b.y}
+}
+
+vec2_sub :: proc(a, b: Vec2f) -> Vec2f {
+    return {a.x - b.x, a.y - b.y}
+}
+
+vec2_scale :: proc(v: Vec2f, factor: f32) -> Vec2f {
+    return {v.x * factor, v.y * factor}
+}
+
+vec2_dot :: proc(a, b: Vec2f) -> f32 {
+    return a.x * b.x + a.y * b.y
+}
+
+vec2_length_squared :: proc(v: Vec2f) -> f32 {
+    return v.x * v.x + v.y * v.y
+}
+
+vec2_length :: proc(v: Vec2f) -> f32 {
+    return math.sqrt_f32(vec2_length_squared(v))
+}
+
+vec2_normalize :: proc(v: Vec2f) -> Vec2f {
+    length := vec2_length(v)
+    if length == 0 do return {}
+    return vec2_scale(v, 1.0 / length)
 }
 
 // Convert between double and float precision
