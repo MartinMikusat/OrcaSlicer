@@ -8,25 +8,42 @@ OrcaSlicer is an open-source 3D printing slicer forked from Bambu Studio/PrusaSl
 
 ## Odin Rewrite Project Scope
 
-**IMPORTANT**: The long-term goal is to rewrite OrcaSlicer in Odin. However, the initial scope is deliberately limited to focus on core functionality:
+**IMPORTANT**: The long-term goal is to rewrite OrcaSlicer in Odin using **Option C: Hybrid Approach** - Build a solid core that could become production-ready by focusing on the 20% of features that matter for 80% of use cases, then add features incrementally based on actual need.
 
-### ✅ In Scope for Odin Rewrite
-- **Core Slicing Engine**: Geometry processing, layer generation, path planning
-- **Basic Print Settings**: Layer heights, walls, infill patterns, speeds
-- **File I/O**: STL, 3MF import/export, G-code generation
-- **Support Generation**: Basic support algorithms (tree and traditional)
-- **Simple GUI**: Basic model loading, slicing, and preview
-- **Configuration System**: Core print settings and presets
+**Project Philosophy**: Create a high-performance, clean foundation that covers essential 3D printing workflows without trying to replicate every feature of OrcaSlicer immediately. Focus on core functionality that delivers real value.
 
-### ❌ Out of Scope (Initially)
+### ✅ In Scope for Odin Rewrite (Core 20%)
+- **Core Slicing Engine**: Geometry processing, layer generation, robust polygon operations
+- **Essential Boolean Operations**: ClipperLib-equivalent for production reliability (union, intersection, difference)
+- **Basic Print Path Generation**: Perimeters, simple infill patterns (rectilinear, honeycomb)
+- **File I/O**: STL import/export, basic G-code generation
+- **Configuration System**: Essential print settings and basic presets
+- **Support Generation**: Basic support algorithms (focus on one reliable method)
+- **Performance Optimization**: Data-oriented design for superior speed
+
+### 🔄 Incremental Additions (Add Based on Need)
+- **Advanced Infill**: Gyroid, adaptive infill, lightning infill
+- **Tree Supports**: Advanced support generation algorithms
+- **3MF Support**: Project file format for multi-part models
+- **Advanced Path Planning**: Seam placement, travel optimization
+- **Basic Variable Layer Heights**: Simple adaptive slicing
+
+### ❌ Out of Scope (Unless Specifically Requested)
 - **Calibration System**: Temperature towers, flow calibration, pressure advance
 - **Network Printing**: Cloud services, printer communication, remote monitoring  
 - **Multi-Material**: AMS integration, wipe towers, tool changes
-- **Boolean Mesh Operations**: Union, intersection, difference of 3D meshes
-- **Advanced Features**: Variable layer heights, ironing, fuzzy skin
+- **Advanced Features**: Ironing, fuzzy skin, complex post-processing
 - **Complex UI**: Advanced gizmos, wizards, complex dialogs
+- **Exotic Features**: Features used by <5% of users
 
-When working on this project, prioritize the in-scope features and avoid implementing the excluded functionality until the core system is stable and complete.
+### Implementation Priority Guidelines
+1. **Implement the essential 20% first** - Don't add advanced features until core functionality is rock-solid
+2. **Validate with real-world prints** - Each feature must work reliably in practice
+3. **Performance over features** - A fast, reliable basic slicer beats a slow, feature-rich one
+4. **Incremental complexity** - Add features only when core functionality proves stable
+5. **User-driven priorities** - Add features based on actual usage needs, not completeness
+
+When working on this project, always ask: "Is this in the essential 20%?" If not, defer it until the core is complete and proven.
 
 **Project Progress Tracking**: See `TODO.md` in the project root for detailed development phases, task lists, and current progress on the Odin rewrite project.
 
