@@ -13,13 +13,14 @@ OrcaSlicer is an open-source 3D printing slicer forked from Bambu Studio/PrusaSl
 **Project Philosophy**: Create a high-performance, clean foundation that covers essential 3D printing workflows without trying to replicate every feature of OrcaSlicer immediately. Focus on core functionality that delivers real value.
 
 ### ✅ In Scope for Odin Rewrite (Core 20%)
-- **Core Slicing Engine**: Geometry processing, layer generation, robust polygon operations
-- **Essential Boolean Operations**: ClipperLib-equivalent for production reliability (union, intersection, difference)
+- **Core Slicing Engine**: Geometry processing, layer generation, robust polygon operations ✅ **COMPLETED**
+- **Essential Boolean Operations**: ClipperLib-equivalent for production reliability (union, intersection, difference) ✅ **COMPLETED**
+- **Spatial Indexing**: AABB trees for efficient mesh queries ✅ **COMPLETED**
 - **Basic Print Path Generation**: Perimeters, simple infill patterns (rectilinear, honeycomb)
-- **File I/O**: STL import/export, basic G-code generation
+- **File I/O**: STL import/export ✅ **COMPLETED**, basic G-code generation
 - **Configuration System**: Essential print settings and basic presets
 - **Support Generation**: Basic support algorithms (focus on one reliable method)
-- **Performance Optimization**: Data-oriented design for superior speed
+- **Performance Optimization**: Data-oriented design for superior speed ✅ **COMPLETED**
 
 ### 🔄 Incremental Additions (Add Based on Need)
 - **Advanced Infill**: Gyroid, adaptive infill, lightning infill
@@ -66,6 +67,27 @@ When working on this project, always ask: "Is this in the essential 20%?" If not
 - **No unnecessary abstraction**: If it doesn't solve a real data problem, remove it
 
 Study the C++ implementation to understand the algorithms and functionality, then implement equivalent behavior using data-oriented Odin patterns.
+
+### Boolean Operations Implementation Notes
+
+**CRITICAL LESSON**: When implementing polygon offsetting, coordinate system precision matters enormously. OrcaSlicer uses fixed-point `coord_t` (int64) for exact arithmetic, but geometric calculations like normalization require floating-point precision.
+
+**Solution Pattern**:
+1. **Hybrid Precision**: Convert to floating-point for geometric calculations, then back to fixed-point for storage
+2. **Proper Normal Direction**: For CCW polygons, outward normal for edge (dx,dy) is (dy,-dx), not (-dy,dx)
+3. **Miter Joint Handling**: Scale by 1/cos(θ/2) for proper corner offsetting with configurable limits
+4. **Bounding Box Optimization**: Early rejection prevents expensive clipping operations
+
+**Essential vs Full Implementation**:
+- Sutherland-Hodgman algorithm handles 80% of 3D printing boolean cases (convex clipping)
+- Full Vatti algorithm (like ClipperLib) needed only for complex overlapping polygons
+- Focus on correctness and performance for common cases first
+
+**Performance Optimizations Implemented**:
+- Bounding box early rejection in intersection operations
+- Floating-point normalization only where needed
+- Memory-safe polygon cleanup with proper ownership tracking
+- Coordinate system conversions minimized to critical paths
 
 ## Geometry and Slicing Concepts
 
