@@ -36,3 +36,11 @@ src/OrcaSlicer-doc/
 resources/profiles/user/default
 *.code-workspace
 ols.json
+
+# Odin build artifacts
+odin/bin/
+odin/build/
+*.bin
+*.exe
+*.dSYM/
+*.pdb
