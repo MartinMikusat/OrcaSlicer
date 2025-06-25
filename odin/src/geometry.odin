@@ -66,6 +66,10 @@ point2d_dot :: proc(a, b: Point2D) -> coord_t {
     return a.x * b.x + a.y * b.y
 }
 
+point2d_length :: proc(p: Point2D) -> f64 {
+    return math.sqrt_f64(f64(p.x * p.x + p.y * p.y))
+}
+
 // =============================================================================
 // Vector Types (Floating-Point for External Interface)
 // =============================================================================
