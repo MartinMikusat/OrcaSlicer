@@ -297,6 +297,35 @@ When encountering unfamiliar concepts in the codebase, consult `RESOURCES.md` fo
 ### Testing Philosophy
 - **Test degenerate cases**: Every geometric algorithm must handle edge cases (vertex-on-plane, collinear, etc.)
 - **Comprehensive coverage**: Test standard cases, edge cases, and failure modes
+- **Frequent compilation checks**: Run `odin check src` or compile regularly to catch syntax errors early
+- **Test with real data**: Always test with actual STL files in addition to synthetic test cases
+
+### Odin Language Specifics
+- **No ternary operator**: Use if-else statements instead of `condition ? true_val : false_val`
+- **Explicit type conversions**: coord_t is int64, not float - use appropriate constants
+- **Naming collision awareness**: Check for existing type names (e.g., Polyline) before creating new ones
+- **Helper functions**: When adding vector operations, implement all required helpers (normalize, dot, etc.)
+- **File operations**: Always read a file with the Read tool before attempting to edit it
+
+### Code Organization
+- **Function placement**: Add helper functions near related code, not at random locations
+- **Import management**: Ensure all required imports are present (e.g., "core:math" for math functions)
+- **Consistent naming**: Follow snake_case for functions, PascalCase for types
+- **Memory cleanup**: Every allocation needs corresponding cleanup, preferably with defer
+
+### Development Workflow
+- **Incremental implementation**: Build features step-by-step, testing at each stage
+- **Document completions**: Update TODO.md immediately after completing major features
+- **Git workflow**: Only commit when explicitly requested by the user
+- **Progress tracking**: Use TodoWrite/TodoRead tools frequently to maintain task state
+
+### Self-Improvement Rule
+**Important**: When encountering issues or inefficiencies during development, proactively update this CLAUDE.md file with new rules or guidelines that would help future development. The user will periodically ask for rule updates based on recent experiences. Consider adding rules for:
+- Common compilation errors and their solutions
+- Patterns that cause issues in Odin vs other languages  
+- Workflow improvements discovered through experience
+- Memory management pitfalls specific to the project
+- Testing strategies that prove effective
 - **Performance validation**: Include benchmarks for critical algorithms (AABB construction, slicing)
 - **Real-world validation**: Test with actual STL files, not just synthetic geometry
 

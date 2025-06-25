@@ -47,6 +47,25 @@ point_distance_squared :: proc(a, b: Point2D) -> coord_t {
     return coord_distance_squared(dx, dy)
 }
 
+// Normalize point vector (return unit vector)
+point2d_normalize :: proc(p: Point2D) -> Point2D {
+    length_sq := p.x * p.x + p.y * p.y
+    if length_sq == 0 do return {1, 0} // Avoid division by zero
+    
+    length := coord_sqrt(length_sq)
+    return {p.x / length, p.y / length}
+}
+
+// Negate point vector
+point2d_negate :: proc(p: Point2D) -> Point2D {
+    return {-p.x, -p.y}
+}
+
+// Dot product of two point vectors
+point2d_dot :: proc(a, b: Point2D) -> coord_t {
+    return a.x * b.x + a.y * b.y
+}
+
 // =============================================================================
 // Vector Types (Floating-Point for External Interface)
 // =============================================================================

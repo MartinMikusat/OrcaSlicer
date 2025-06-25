@@ -8,6 +8,126 @@ import "core:slice"
 
 TriangleIndex :: struct {
     vertices: [3]u32, // Indices into vertex array
+    edges:    [3]u32, // Edge IDs for topology tracking (computed on demand)
+}
+
+// =============================================================================
+// Edge Connectivity for Advanced Segment Chaining
+// =============================================================================
+
+Edge :: struct {
+    vertex_a:    u32,  // First vertex index
+    vertex_b:    u32,  // Second vertex index
+    triangle_a:  u32,  // First triangle using this edge
+    triangle_b:  u32,  // Second triangle using this edge (INVALID_INDEX if boundary)
+}
+
+EdgeMap :: struct {
+    edges:            [dynamic]Edge,        // All edges in the mesh
+    vertex_to_edges:  map[u64][dynamic]u32, // Hash(vertex_pair) -> edge_ids
+}
+
+INVALID_INDEX :: u32(0xFFFFFFFF)
+
+// Create empty edge map
+edge_map_create :: proc() -> EdgeMap {
+    return {
+        edges = make([dynamic]Edge),
+        vertex_to_edges = make(map[u64][dynamic]u32),
+    }
+}
+
+// Destroy edge map and free memory
+edge_map_destroy :: proc(edge_map: ^EdgeMap) {
+    delete(edge_map.edges)
+    for key, edge_list in edge_map.vertex_to_edges {
+        delete(edge_list)
+    }
+    delete(edge_map.vertex_to_edges)
+}
+
+// Clear edge map contents
+edge_map_clear :: proc(edge_map: ^EdgeMap) {
+    clear(&edge_map.edges)
+    for key, edge_list in edge_map.vertex_to_edges {
+        delete(edge_list)
+    }
+    clear(&edge_map.vertex_to_edges)
+}
+
+// Hash function for vertex pair
+vertex_pair_hash :: proc(a, b: u32) -> u64 {
+    // Ensure consistent ordering
+    min_v, max_v := min(a, b), max(a, b)
+    return (u64(min_v) << 32) | u64(max_v)
+}
+
+// Build edge connectivity map from triangle mesh
+build_edge_topology :: proc(mesh: ^TriangleMesh) {
+    edge_map_clear(&mesh.edge_map)
+    
+    // First pass: create edges and build hash map
+    for triangle, tri_idx in mesh.its.indices {
+        vertices := triangle.vertices
+        
+        // Process each edge of the triangle
+        for i in 0..<3 {
+            v1 := vertices[i]
+            v2 := vertices[(i + 1) % 3]
+            
+            hash := vertex_pair_hash(v1, v2)
+            
+            // Check if edge already exists
+            edge_found := false
+            if edge_ids, exists := mesh.edge_map.vertex_to_edges[hash]; exists {
+                for edge_id in edge_ids {
+                    edge := &mesh.edge_map.edges[edge_id]
+                    if edge.triangle_b == INVALID_INDEX {
+                        // This is a boundary edge, add second triangle
+                        edge.triangle_b = u32(tri_idx)
+                        edge_found = true
+                        break
+                    }
+                }
+            }
+            
+            if !edge_found {
+                // Create new edge
+                edge := Edge{
+                    vertex_a = min(v1, v2),
+                    vertex_b = max(v1, v2), 
+                    triangle_a = u32(tri_idx),
+                    triangle_b = INVALID_INDEX,
+                }
+                
+                edge_id := u32(len(mesh.edge_map.edges))
+                append(&mesh.edge_map.edges, edge)
+                
+                // Add to hash map
+                if hash not_in mesh.edge_map.vertex_to_edges {
+                    mesh.edge_map.vertex_to_edges[hash] = make([dynamic]u32)
+                }
+                append(&mesh.edge_map.vertex_to_edges[hash], edge_id)
+                
+                // Store edge ID in triangle
+                mesh.its.indices[tri_idx].edges[i] = edge_id
+            }
+        }
+    }
+    
+    mesh.topology_dirty = false
+}
+
+// Get edge ID for triangle edge
+get_triangle_edge_id :: proc(mesh: ^TriangleMesh, triangle_idx: u32, edge_idx: u32) -> u32 {
+    if mesh.topology_dirty {
+        build_edge_topology(mesh)
+    }
+    
+    assert(triangle_idx < u32(len(mesh.its.indices)), "Triangle index out of bounds")
+    assert(edge_idx < 3, "Edge index must be 0, 1, or 2")
+    
+    return mesh.its.indices[triangle_idx].edges[edge_idx]
 }
 
 // =============================================================================
@@ -173,23 +293,28 @@ its_validate :: proc(its: ^IndexedTriangleSet) -> bool {
 // =============================================================================
 
 TriangleMesh :: struct {
-    its:   IndexedTriangleSet,
-    stats: MeshStats,
-    dirty: bool, // Stats need recalculation
+    its:       IndexedTriangleSet,
+    stats:     MeshStats,
+    dirty:     bool, // Stats need recalculation
+    edge_map:  EdgeMap, // Topology information for advanced chaining
+    topology_dirty: bool, // Topology needs rebuilding
 }
 
 // Create empty triangle mesh
 mesh_create :: proc() -> TriangleMesh {
     return {
-        its   = its_create(),
-        stats = {},
-        dirty = true,
+        its     = its_create(),
+        stats   = {},
+        dirty   = true,
+        edge_map = edge_map_create(),
+        topology_dirty = true,
     }
 }
 
 // Destroy triangle mesh
 mesh_destroy :: proc(mesh: ^TriangleMesh) {
     its_destroy(&mesh.its)
+    edge_map_destroy(&mesh.edge_map)
 }
 
 // Get mesh statistics, recalculating if needed
