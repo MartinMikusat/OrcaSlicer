@@ -94,25 +94,49 @@ When working on this project, always ask: "Is this in the essential 20%?" If not
 
 **Development Reality**: Need 4-6 weeks of focused work to bridge the gap between excellent foundations and functional slicing capabilities.
 
+### 🚀 Phase 3 Priority - Performance Optimization Plan
+
+Once the core slicer functionality is complete and validated, the next priority is to elevate the Odin rewrite's performance to surpass the C++ implementation. The following multi-stage plan will be executed:
+
+**1. Introduce Parallelism (Highest Priority)**
+The single greatest performance gain will come from leveraging modern multi-core CPUs.
+- **Parallelize Layer Slicing**: The main loop that processes each Z-height is embarrassingly parallel. Use Odin's `runtime.thread_pool` to process multiple layers concurrently.
+- **Parallelize Triangle Intersection**: Within a single layer slice, the process of intersecting triangles with the Z-plane is also highly parallel. The list of candidate triangles from the AABB tree should be divided among worker threads.
+
+**2. Optimize Memory Allocation Strategy**
+Reduce or eliminate memory allocation overhead in hot loops (e.g., per-layer processing).
+- **Implement Arena Allocators**: For temporary, per-layer data (like intersection segments, polylines), use an arena allocator. A single large block of memory should be allocated for each layer, with temporary data being "bump-allocated" from it. The entire arena is then freed at once, avoiding costly individual `delete()` calls.
+
+**3. Algorithmic & Data Structure Refinements**
+With major bottlenecks addressed, focus on fine-grained optimizations.
+- **Analyze Chaining Performance**: Profile the three-phase chaining algorithm and investigate using spatial grids to accelerate later phases if necessary.
+  - **Consider Structure of Arrays (SoA)**: For performance-critical data structures like `LineSegment`, evaluate converting from the current Array of Structures (AoS) to a Structure of Arrays (SoA) layout to improve cache locality and enable SIMD auto-vectorization. **Leverage Odin's `#soa` directive** to achieve this with minimal refactoring.
+
+**4. Establish a Benchmarking & Profiling Suite**
+You can't optimize what you can't measure.
+- **Create Benchmark Tests**: Add a dedicated test file (`test_performance_benchmark.odin`) that loads complex, real-world STL files.
+- **Profile Regularly**: Use standard profiling tools (`perf`, Instruments, etc.) to run these benchmarks and identify true bottlenecks, guiding all optimization effort.
+
 **Project Progress Tracking**: See `TODO.md` in the project root for detailed development phases, task lists, and current progress on the Odin rewrite project.
 
 **Odin Development**: All new Odin code is located in the `odin/` directory in the project root. This is where the rewrite implementation takes place, separate from the existing C++ codebase.
 
 ### Odin Rewrite Philosophy
 **CRITICAL**: This is NOT a literal C++ translation. The goal is to create equivalent functionality using:
-- **Data-Oriented Programming**: Following Mike Acton/Casey Muratori principles
-- **Maximum Performance**: Cache-friendly data layouts, minimal indirection
-- **Idiomatic Odin**: Use Odin's strengths (procedures, structs, enums, slices)
-- **Batch Processing**: Transform data in bulk, avoid per-object operations
-- **Memory Efficiency**: Contiguous arrays, structure-of-arrays over array-of-structures
+- **Data-Oriented Programming**: Following Mike Acton/Casey Muratori principles.
+- **Maximum Performance**: Through cache-friendly data layouts and minimal indirection.
+- **Idiomatic Odin**: Using the language's strengths (procedures, structs, enums, slices).
+- **Batch Processing**: Transforming data in bulk, avoiding per-object operations.
+- **High-Performance Memory Patterns**: Using explicit memory management strategies like arena allocators to control memory layout and minimize overhead.
 
 ### Data-Oriented Design Principles
-- **Data is the problem**: Design around data transformations, not object models
-- **Cache locality**: Keep related data together in memory
-- **SIMD-friendly**: Use data layouts that enable vectorization
-- **Minimize branching**: Prefer data-driven dispatch over conditionals
-- **Batch operations**: Process arrays of data, not individual items
-- **No unnecessary abstraction**: If it doesn't solve a real data problem, remove it
+- **Data is the problem**: Design around data transformations, not object models.
+- **Control Your Memory**: Memory layout is a primary design concern. Avoid patterns that lead to scattered data.
+- **Cache Locality is King**: Keep related data together in memory. Prefer contiguous arrays of simple structs.
+- **Think in Batches**: Process large arrays of data at once, not individual items in loops. This is fundamental to performance.
+- **Write SIMD-Friendly Code**: Use data layouts that enable the compiler to auto-vectorize your code. Prefer a Structure of Arrays (SoA) layout for hot data, and **use Odin's `#soa` directive** to easily implement this pattern.
+- **Minimize Branching**: Prefer data-driven dispatch (e.g., using lookup tables) over complex conditional logic in hot loops.
+- **No Unnecessary Abstraction**: If an abstraction doesn't solve a real data problem or actively hurts performance, remove it.
 
 Study the C++ implementation to understand the algorithms and functionality, then implement equivalent behavior using data-oriented Odin patterns.
 
@@ -364,10 +388,15 @@ When encountering unfamiliar concepts in the codebase, consult `RESOURCES.md` fo
 
 ## Odin Development Best Practices
 
+### High-Performance Memory Patterns
+- **Use Arena Allocators for Hot Loops**: For functions that are called repeatedly (like per-layer slicing), allocate a single memory arena at the start of the function. All temporary data should be bump-allocated from this arena. The entire arena is then freed at once upon exit. This avoids the significant overhead of repeated `make()` and `delete()` calls.
+- **Avoid `make([dynamic]...)` in Loops**: Standard dynamic array allocation is too slow for performance-critical code that runs thousands of times. Prefer passing in a pre-allocated slice or using an arena.
+- **Control Memory Layout**: Think carefully about how data is laid out in memory. The goal is to ensure data that is accessed together is stored together (contiguous). This is the key to cache performance.
+
 ### Memory Management Rules
-- **Always use `defer` for cleanup**: Every `make([dynamic]Type)` must have corresponding `delete()` in defer block
-- **Clean up segments properly**: When working with `[dynamic]LineSegment`, ensure cleanup in calling code
-- **Use structured cleanup**: Group related allocations and deallocations for clarity
+- **Always use `defer` for cleanup**: Every allocation (`make`, `new`, arena allocation) must have a corresponding `delete()` or `free()` in a defer block to prevent memory leaks.
+- **Clean up segments properly**: When working with `[dynamic]LineSegment`, ensure cleanup in calling code.
+- **Use structured cleanup**: Group related allocations and deallocations for clarity.
 - **Test memory safety**: Run tests to verify no leaks or corruption
 
 ### Error Handling Patterns
@@ -388,6 +417,7 @@ When encountering unfamiliar concepts in the codebase, consult `RESOURCES.md` fo
 - **Test with real data**: Always test with actual STL files in addition to synthetic test cases
 
 ### Odin Language Specifics
+- **Leverage `#soa` for Performance**: For large arrays of structs in performance-critical code, use the `#soa` directive on the struct definition to automatically switch to a Structure-of-Arrays memory layout. This can significantly improve cache performance and opportunities for auto-vectorization with minimal code changes.
 - **No ternary operator**: Use if-else statements instead of `condition ? true_val : false_val`
 - **Explicit type conversions**: coord_t is int64, not float - use appropriate constants
 - **Naming collision awareness**: Check for existing type names (e.g., Polyline) before creating new ones
