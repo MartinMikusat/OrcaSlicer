@@ -46,6 +46,38 @@ main :: proc() {
         return
     }
     
+    // Check for perimeter-only flag
+    if len(os.args) > 1 && os.args[1] == "--perimeter-only" {
+        fmt.println("=== Testing Perimeter Generation Only ===")
+        test_perimeter_generation_only()
+        fmt.println("=== Perimeter Generation Tests Completed ===")
+        return
+    }
+    
+    // Check for infill-only flag
+    if len(os.args) > 1 && os.args[1] == "--infill-only" {
+        fmt.println("=== Testing Infill Generation Only ===")
+        test_infill_generation_only()
+        fmt.println("=== Infill Generation Tests Completed ===")
+        return
+    }
+    
+    // Check for simple-infill flag
+    if len(os.args) > 1 && os.args[1] == "--simple-infill" {
+        fmt.println("=== Testing Simple Infill ===")
+        test_simple_infill()
+        fmt.println("=== Simple Infill Tests Completed ===")
+        return
+    }
+    
+    // Check for complete pipeline flag
+    if len(os.args) > 1 && os.args[1] == "--pipeline" {
+        fmt.println("=== Testing Complete Pipeline ===")
+        test_complete_pipeline()
+        fmt.println("=== Complete Pipeline Tests Completed ===")
+        return
+    }
+    
     // Test all core components
     test_coordinates()
     test_geometry()
