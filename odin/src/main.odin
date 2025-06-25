@@ -34,6 +34,18 @@ main :: proc() {
         return
     }
     
+    // Check for skirt-brim-only flag
+    if len(os.args) > 1 && os.args[1] == "--skirt-brim-only" {
+        fmt.println("=== Testing Skirt and Brim Generation Only ===")
+        test_skirt_brim_generation()
+        test_advanced_brim_features()
+        test_skirt_minimal_length()
+        test_material_calculations()
+        test_complete_skirt_brim_workflow()
+        fmt.println("=== Skirt/Brim Generation Tests Completed ===")
+        return
+    }
+    
     // Test all core components
     test_coordinates()
     test_geometry()
@@ -79,6 +91,13 @@ main :: proc() {
     test_travel_optimization()
     test_speed_optimization()
     test_complete_path_optimization_workflow()
+    
+    // Test skirt and brim generation system
+    test_skirt_brim_generation()
+    test_advanced_brim_features()
+    test_skirt_minimal_length()
+    test_material_calculations()
+    test_complete_skirt_brim_workflow()
     
     // Test STL functionality if file provided, or use test cube
     test_stl_path := "test_cube.stl"
