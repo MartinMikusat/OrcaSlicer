@@ -274,3 +274,52 @@ This documentation provides deep technical insight into OrcaSlicer's implementat
 - **Performance optimization** (data-oriented design, cache-friendly programming)
 
 When encountering unfamiliar concepts in the codebase, consult `RESOURCES.md` for relevant books, papers, and documentation that explain the theoretical foundations and provide learning paths for different skill levels.
+
+## Odin Development Best Practices
+
+### Memory Management Rules
+- **Always use `defer` for cleanup**: Every `make([dynamic]Type)` must have corresponding `delete()` in defer block
+- **Clean up segments properly**: When working with `[dynamic]LineSegment`, ensure cleanup in calling code
+- **Use structured cleanup**: Group related allocations and deallocations for clarity
+- **Test memory safety**: Run tests to verify no leaks or corruption
+
+### Error Handling Patterns
+- **Graceful degradation**: If STL loading fails, log warning but continue with other tests
+- **Assertion-based validation**: Use `assert()` for critical invariants in test code
+- **Early returns**: Fail fast for invalid inputs rather than propagating errors
+
+### Data-Oriented Implementation Guidelines
+- **Multi-segment support**: Always design for multiple results per operation (e.g., face-on-plane → 3 segments)
+- **Bitmask classification**: Use systematic bit patterns for vertex/edge classification
+- **Batch processing**: Process arrays of data rather than individual items
+- **Structure of arrays**: Prefer `[dynamic]Vertex` over `[dynamic]Triangle` when possible
+
+### Testing Philosophy
+- **Test degenerate cases**: Every geometric algorithm must handle edge cases (vertex-on-plane, collinear, etc.)
+- **Comprehensive coverage**: Test standard cases, edge cases, and failure modes
+- **Performance validation**: Include benchmarks for critical algorithms (AABB construction, slicing)
+- **Real-world validation**: Test with actual STL files, not just synthetic geometry
+
+### Code Organization Principles
+- **Separate concerns**: Keep geometric predicates, spatial indexing, and slicing algorithms in separate files
+- **Clear interfaces**: Functions should have obvious inputs/outputs and minimal side effects
+- **Progressive enhancement**: Build basic functionality first, then add robustness (gap closing, degenerate handling)
+- **Documentation via tests**: Test functions should serve as usage examples
+
+### Integration Patterns
+- **Legacy compatibility**: Maintain backward-compatible fields during transitions
+- **Incremental migration**: Update calling code immediately after enhancing core algorithms
+- **Validation layers**: Add validation between major processing stages
+- **Statistics tracking**: Monitor processing metrics for performance regression detection
+
+### Performance Considerations
+- **Profile before optimizing**: Use actual benchmarks, not assumptions
+- **Data locality**: Keep related data together in memory layouts
+- **Minimize allocations**: Reuse buffers where possible, especially in hot paths
+- **Batch similar operations**: Process all triangles in a layer together, not individually
+
+### Git Workflow Guidelines
+- **Commit granularity**: One logical feature per commit (e.g., "degenerate case handling")
+- **Descriptive messages**: Include problem solved, solution approach, and test results
+- **Clean staging**: Only commit relevant files, exclude temporary outputs
+- **Progressive commits**: Commit foundation first, then integration, then tests
