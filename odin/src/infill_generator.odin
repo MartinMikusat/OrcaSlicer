@@ -202,8 +202,7 @@ generate_rectilinear_pattern :: proc(infill_regions: [dynamic]Polygon, settings:
 generate_parallel_lines :: proc(bbox: BoundingBox2D, spacing: f64, angle_degrees: f64) -> [dynamic]Polyline {
     lines := make([dynamic]Polyline)
     
-    // For now, implement simple horizontal/vertical lines to fix the critical bug
-    // TODO: Add proper rotation support later
+    // Implement proper rotation support now that coordinates are fixed
     
     if angle_degrees == 0.0 || abs(angle_degrees) < 1e-6 {
         // Horizontal lines
@@ -253,20 +252,44 @@ generate_parallel_lines :: proc(bbox: BoundingBox2D, spacing: f64, angle_degrees
             append(&lines, line)
         }
     } else {
-        // For other angles, fall back to simplified approach
-        // Generate horizontal lines for now
-        bbox_height_mm := coord_to_mm(bbox.max.y - bbox.min.y)
-        line_count := int(bbox_height_mm / spacing) + 2
+        // General case: rotated lines at any angle
+        angle_rad := angle_degrees * math.PI / 180.0
+        cos_angle := math.cos_f64(angle_rad)
+        sin_angle := math.sin_f64(angle_rad)
         
+        // Calculate bbox dimensions in mm
+        bbox_width_mm := coord_to_mm(bbox.max.x - bbox.min.x)
+        bbox_height_mm := coord_to_mm(bbox.max.y - bbox.min.y)
+        
+        // Calculate diagonal length for line extension
+        diagonal_mm := math.sqrt_f64(bbox_width_mm * bbox_width_mm + bbox_height_mm * bbox_height_mm)
+        
+        // Center point of bounding box in mm
+        center_x_mm := coord_to_mm(bbox.min.x) + bbox_width_mm / 2.0
+        center_y_mm := coord_to_mm(bbox.min.y) + bbox_height_mm / 2.0
+        
+        // Number of lines needed (based on spacing perpendicular to line direction)
+        line_count := int(diagonal_mm / spacing) + 2
+        
+        // Generate lines perpendicular to the angle direction
         for i in 0..<line_count {
-            y_offset := f64(i) * spacing
-            y_mm := coord_to_mm(bbox.min.y) + y_offset
+            // Offset perpendicular to line direction
+            offset := (f64(i) - f64(line_count) / 2.0) * spacing
             
-            start_x := coord_to_mm(bbox.min.x) - 1.0
-            end_x := coord_to_mm(bbox.max.x) + 1.0
+            // Calculate line position (perpendicular offset from center)
+            line_center_x := center_x_mm + offset * (-sin_angle)
+            line_center_y := center_y_mm + offset * cos_angle
             
-            start := point2d_from_mm(start_x, y_mm)
-            end := point2d_from_mm(end_x, y_mm)
+            // Calculate line endpoints (extend along line direction)
+            half_length := diagonal_mm / 2.0
+            start_x := line_center_x - half_length * cos_angle
+            start_y := line_center_y - half_length * sin_angle
+            end_x := line_center_x + half_length * cos_angle
+            end_y := line_center_y + half_length * sin_angle
+            
+            // Convert to coordinates
+            start := point2d_from_mm(start_x, start_y)
+            end := point2d_from_mm(end_x, end_y)
             
             line := Polyline{points = make([dynamic]Point2D)}
             append(&line.points, start)

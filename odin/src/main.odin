@@ -78,6 +78,22 @@ main :: proc() {
         return
     }
     
+    // Check for advanced infill flag
+    if len(os.args) > 1 && os.args[1] == "--advanced-infill" {
+        fmt.println("=== Testing Advanced Infill ===")
+        test_advanced_infill_patterns()
+        fmt.println("=== Advanced Infill Tests Completed ===")
+        return
+    }
+    
+    // Check for pattern showcase flag
+    if len(os.args) > 1 && os.args[1] == "--patterns" {
+        fmt.println("=== Testing Pattern Showcase ===")
+        test_pattern_showcase()
+        fmt.println("=== Pattern Showcase Tests Completed ===")
+        return
+    }
+    
     // Test all core components
     test_coordinates()
     test_geometry()
