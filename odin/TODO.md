@@ -236,8 +236,9 @@ slice.sort_by(items[:], proc(a, b: SortItem) -> bool {
 ### Performance Requirements  
 - ✅ <10ms AABB construction (1K triangles) (**Achieved: ~36ms - acceptable for complexity**)
 - 🔄 <100ms AABB construction (10K triangles) (**Projected: ~360ms - needs optimization**)
-- [ ] >10K slices/second throughput
-- [ ] <2GB memory for 500MB STL
+- [ ] ≥ 10K layers/second throughput (ARM64)
+- [ ] G-code validity ≥ 99.9% test pass rate
+- [ ] Memory < 1GB for 500MB STL (updated target)
 
 **Current Performance Status:**
 - ✅ AABB spatial queries: 2-10x faster than brute force

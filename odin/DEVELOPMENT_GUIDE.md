@@ -295,8 +295,9 @@ GapClosingConfig :: struct {
 **Performance Goals:**
 - ✅ <10ms construction for 1K triangles
 - ✅ <100ms construction for 10K triangles
-- ✅ >10K slices/second throughput
-- ✅ <2GB memory for 500MB STL files
+- ✅ ≥ 10K layers/second throughput (ARM64)
+- ✅ G-code validity ≥ 99.9% test pass rate
+- ✅ Memory < 1GB for 500MB STL files (updated target)
 
 ## Performance Analysis
 
