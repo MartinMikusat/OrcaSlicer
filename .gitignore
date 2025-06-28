@@ -44,3 +44,8 @@ odin/build/
 *.exe
 *.dSYM/
 *.pdb
+
+# Odin project files
+odin/odin_slicer
+odin/orcaslicer
+*.bak
