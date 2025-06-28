@@ -49,3 +49,54 @@ odin/build/
 odin/odin_slicer
 odin/orcaslicer
 *.bak
+
+# Odin compiler outputs
+*.ll
+*.bc
+*.s
+*.asm
+core
+core.*
+
+# Development and debugging
+*.tmp
+*.temp
+*.prof
+*.trace
+*.mem
+*.cpu
+*.test
+*.bench
+
+# Editor/IDE files
+*.swp
+*.swo
+*~
+.viminfo
+*.vim
+.ycm_extra_conf.py
+.ccls-cache/
+.clangd/
+tags
+TAGS
+
+# macOS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Performance profiling
+*.perf
+*.flame
+*.svg
+perf.data*
+callgrind.out.*
+
+# Test outputs
+test_results/
+test_output/
+*.test_output
