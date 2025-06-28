@@ -79,6 +79,14 @@ main :: proc() {
         return
     }
     
+    // Check for core pipeline test flag
+    if len(os.args) > 1 && os.args[1] == "--core" {
+        fmt.println("=== Testing Core Pipeline ===")
+        test_core_slicing_pipeline()
+        fmt.println("=== Core Pipeline Tests Completed ===")
+        return
+    }
+    
     // Check for advanced infill flag
     if len(os.args) > 1 && os.args[1] == "--advanced-infill" {
         fmt.println("=== Testing Advanced Infill ===")
@@ -159,6 +167,7 @@ main :: proc() {
     
     // Test enhanced boolean operations
     test_boolean_operations_enhanced()
+    test_boolean_operations_new()
     
     // Test print path generation pipeline
     test_print_path_generation()
